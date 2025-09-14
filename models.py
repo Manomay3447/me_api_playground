@@ -19,24 +19,55 @@ class Profile(db.Model):
     projects = db.relationship('Project', backref='profile', lazy=True, cascade='all, delete-orphan')
     work_experiences = db.relationship('WorkExperience', backref='profile', lazy=True, cascade='all, delete-orphan')
     links = db.relationship('Link', backref='profile', lazy=True, cascade='all, delete-orphan')
-    
     def to_dict(self):
-        return {
-            'id': self.id,
-            'name': self.name,
-            'email': self.email,
-            'education': self.education,
-            'skills': [skill.to_dict() for skill in self.skills],
-            'projects': [project.to_dict() for project in self.projects],
-            'work': [work.to_dict() for work in self.work_experiences],
-            'links': {
-                'github': next((link.url for link in self.links if link.link_type == 'github'), ''),
-                'linkedin': next((link.url for link in self.links if link.link_type == 'linkedin'), ''),
-                'portfolio': next((link.url for link in self.links if link.link_type == 'portfolio'), '')
-            },
-            'created_at': self.created_at.isoformat(),
-            'updated_at': self.updated_at.isoformat()
-        }
+        try:
+            result = {
+                'id': self.id,
+                'name': self.name,
+                'email': self.email,
+                'education': self.education
+            }
+        
+        # Add timestamp fields if they exist
+            if hasattr(self, 'created_at') and self.created_at:
+                result['created_at'] = self.created_at.isoformat()
+            if hasattr(self, 'updated_at') and self.updated_at:
+                result['updated_at'] = self.updated_at.isoformat()
+        
+        # Add related data safely
+            try:
+                result['skills'] = [skill.to_dict() for skill in self.skills]
+            except:
+                result['skills'] = []
+            
+            try:
+                result['projects'] = [project.to_dict() for project in self.projects]
+            except:
+                result['projects'] = []
+            
+            try:
+                result['work'] = [work.to_dict() for work in self.work_experiences]
+            except:
+                result['work'] = []
+            
+            try:
+                result['links'] = {link.link_type: link.url for link in self.links}
+            except:
+                result['links'] = {}
+        
+            return result
+        except Exception as e:
+        # Fallback to basic dictionary if there are any errors
+            return {
+                'id': getattr(self, 'id', None),
+                'name': getattr(self, 'name', ''),
+                'email': getattr(self, 'email', ''),
+                'education': getattr(self, 'education', ''),
+                'skills': [],
+                'projects': [],
+                'work': [],
+                'links': {}
+            }
 
 class Skill(db.Model):
     __tablename__ = 'skills'
@@ -45,12 +76,13 @@ class Skill(db.Model):
     profile_id = db.Column(db.Integer, db.ForeignKey('profiles.id'), nullable=False)
     name = db.Column(db.String(100), nullable=False)
     level = db.Column(db.String(20), default='beginner')  # beginner, intermediate, advanced
-    
+
     def to_dict(self):
         return {
             'id': self.id,
             'name': self.name,
-            'level': self.level
+            'level': self.level,
+            'profile_id': self.profile_id
         }
 
 class Project(db.Model):
@@ -64,19 +96,27 @@ class Project(db.Model):
     github_url = db.Column(db.String(500))
     demo_url = db.Column(db.String(500))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    
+
     def to_dict(self):
-        return {
+        result = {
             'id': self.id,
             'title': self.title,
             'description': self.description,
-            'technologies': json.loads(self.technologies) if self.technologies else [],
-            'links': {
-                'github': self.github_url,
-                'demo': self.demo_url
-            },
-            'created_at': self.created_at.isoformat()
+            'github_url': self.github_url,
+            'demo_url': self.demo_url,
+            'profile_id': self.profile_id
         }
+    
+    # Handle technologies JSON field safely
+        try:
+            if self.technologies:
+                result['technologies'] = json.loads(self.technologies)
+            else:
+                result['technologies'] = []
+        except (json.JSONDecodeError, TypeError):
+            result['technologies'] = []
+    
+        return result
 
 class WorkExperience(db.Model):
     __tablename__ = 'work_experiences'
@@ -98,7 +138,8 @@ class WorkExperience(db.Model):
             'description': self.description,
             'start_date': self.start_date.isoformat() if self.start_date else None,
             'end_date': self.end_date.isoformat() if self.end_date else None,
-            'is_current': self.is_current
+            'is_current': self.is_current,
+            'profile_id': self.profile_id
         }
 
 class Link(db.Model):
@@ -113,5 +154,6 @@ class Link(db.Model):
         return {
             'id': self.id,
             'type': self.link_type,
-            'url': self.url
+            'url': self.url,
+            'profile_id': self.profile_id
         }
