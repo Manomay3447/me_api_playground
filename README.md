@@ -2,6 +2,8 @@
 
 A personal API playground built with Flask, MySQL, and vanilla JavaScript that allows you to store and manage your profile information including skills, projects, work experience, and social links.
 
+## My Resume link - https://drive.google.com/file/d/1AdTTIB_egBUaKnuG0zWPMJJF6viEsc5q/view?usp=sharing 
+
 ## Features
 
 - **Complete Profile Management**: Store personal information, education, skills, projects, and work experience
